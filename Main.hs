@@ -53,17 +53,44 @@ module Main where
                   ((-50), 50, (-50))
                 ]
 
-  cubePointsRotated :: Float -> Float -> [Matrix Float]
-  cubePointsRotated y t = map ((*) (rotY y)) xRotated
+  pyramidPoints3D :: [(Float, Float, Float)]
+  pyramidPoints3D = [
+                      (200, 0, 0),
+                      (300, 0, 0),
+                      (200, 0, 100),
+                      (300, 0, 100),
+                      (250, 200, 50)
+                    ]
+
+  -- PYRAMID
+
+  pyramidPointsRotated :: Float -> [Matrix Float]
+  pyramidPointsRotated t = map ((*) (rotY yRotationValue)) xRotated
+    where
+      pyramidPoints = map pointToMatrix cubePoints3D
+      xRotated = map ((*) (rotX t)) pyramidPoints
+
+  pyramidPoints2D :: Float -> [Matrix Float]
+  pyramidPoints2D t = map ((*) projection) (pyramidPointsRotated t)
+
+  rotatedPyramidPointsFromMats :: Float -> [(Float, Float)]
+  rotatedPyramidPointsFromMats t = map matrixToPoint (pyramidPoints2D t)
+
+  -- CUBE
+
+  cubePointsRotated :: Float -> [Matrix Float]
+  cubePointsRotated t = map ((*) (rotY yRotationValue)) xRotated
     where
       cubePoints = map pointToMatrix cubePoints3D
       xRotated = map ((*) (rotX t)) cubePoints
 
-  cubePoints2D :: Float -> Float -> [Matrix Float]
-  cubePoints2D y t = map ((*) projection) (cubePointsRotated y t)
+  cubePoints2D :: Float -> [Matrix Float]
+  cubePoints2D t = map ((*) projection) (cubePointsRotated t)
 
-  rotatedPointsFromMats :: Float -> Float -> [(Float, Float)]
-  rotatedPointsFromMats y t = map matrixToPoint (cubePoints2D y t)
+  rotatedPointsFromMats :: Float -> [(Float, Float)]
+  rotatedPointsFromMats t = map matrixToPoint (cubePoints2D t)
+
+  -- render functions
 
   makeSquare :: Int -> [(Float, Float)] -> Picture
   makeSquare n pts = if n == 1 then color blue (lineLoop pts) else color red (lineLoop pts)
@@ -76,15 +103,21 @@ module Main where
       c = [pts !! 2, pts !! 6]
       d = [pts !! 3, pts !! 7]
 
-  renderCube :: Float -> IO Picture
-  renderCube t = return $ Pictures [makeSquare 1 firstSqr, makeSquare 2 secondSqr, makeLines points]
+  connectToTip :: [(Float, Float)] -> Picture
+  connectToTip coords = Pictures [color white $ line a, color white $ line b, color white $ line c, color white $ line d]
     where
-      points = rotatedPointsFromMats yRotationValue t
+      a = [coords !! 0, last coords]
+      b = [coords !! 1, last coords]
+      c = [coords !! 2, last coords]
+      d = [coords !! 3, last coords]
+
+  renderCube :: Float -> IO Picture
+  renderCube t = return $ Pictures [makeSquare 1 firstSqr, makeSquare 2 secondSqr, makeLines points] -- ++ [makeSquare 1 pyramidBase, connectToTip (rotatedPyramidPointsFromMats yRotationValue t)]
+    where
+      points = rotatedPointsFromMats t
       firstSqr = take 4 points
       secondSqr = drop 4 points
-
-  controller :: Controller -> IO ()
-  controller c = return ()
+      pyramidBase = take 4 $ rotatedPyramidPointsFromMats t
 
   main :: IO ()
-  main = animateIO (InWindow "3D Projection" (800, 800) (240, 360)) black renderCube controller
+  main = animateIO (InWindow "3D Projection" (800, 800) (240, 360)) black renderCube (\c -> return ())
